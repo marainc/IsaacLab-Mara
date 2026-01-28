@@ -94,6 +94,7 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 logger = logging.getLogger(__name__)
 
 # PLACEHOLDER: Extension template (do not remove this comment)
+import seeker_swarm  # noqa: F401
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)
