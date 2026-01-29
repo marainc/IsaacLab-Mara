@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser(description="Test ArduPilot integration with Is
 parser.add_argument("--num_drones", type=int, default=12, help="Number of drones to simulate (default: 3)")
 parser.add_argument("--headless", action="store_true", help="Run in headless mode (no GUI)")
 parser.add_argument("--duration", type=int, default=600, help="Test duration in seconds (default: 600)")
+parser.add_argument("--spinning_rotors", action="store_true", help="Enable visual rotor spinning (kinematic, no physics feedback)")
 args_cli = parser.parse_args()
 
 # Launch Isaac Sim
@@ -75,6 +76,7 @@ def main():
     cfg.use_ardupilot = True
     cfg.ardupilot_dir = "/home/sam/repos/falcon/submodules/ardupilot"
     cfg.ardupilot_autolaunch = True
+    cfg.enable_rotor_spinning = args_cli.spinning_rotors  # Enable visual rotor spinning if flag passed
 
     carb.log_info("\n" + "="*80)
     carb.log_info(f"ArduPilot Integration Test - {args_cli.duration}s Run")

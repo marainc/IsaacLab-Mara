@@ -8,6 +8,7 @@
 #   -n, --num_drones N    Number of drones to simulate (default: 12)
 #   -d, --duration N      Test duration in seconds (default: 600)
 #   -h, --headless        Run in headless mode (no GUI)
+#   -s, --spinning        Enable visual rotor spinning (kinematic, no physics)
 #   --help                Show this help message
 #
 # Examples:
@@ -15,11 +16,13 @@
 #   ./run_ardupilot_test.sh -n 3                         # 3 drones, 10 minutes
 #   ./run_ardupilot_test.sh -n 5 -d 300                  # 5 drones, 5 minutes
 #   ./run_ardupilot_test.sh -n 10 -d 120 --headless      # 10 drones, 2 minutes, no GUI
+#   ./run_ardupilot_test.sh -n 3 -s                      # 3 drones with spinning rotors
 
 # Parse command line arguments
 NUM_DRONES=""
 DURATION=""
 HEADLESS=""
+SPINNING=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -35,6 +38,10 @@ while [[ $# -gt 0 ]]; do
             HEADLESS="--headless"
             shift
             ;;
+        -s|--spinning)
+            SPINNING="--spinning_rotors"
+            shift
+            ;;
         --help)
             echo "ArduPilot SITL Integration Test"
             echo ""
@@ -44,6 +51,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -n, --num_drones N    Number of drones to simulate (default: 12)"
             echo "  -d, --duration N      Test duration in seconds (default: 600)"
             echo "  -h, --headless        Run in headless mode (no GUI)"
+            echo "  -s, --spinning        Enable visual rotor spinning (kinematic, no physics)"
             echo "  --help                Show this help message"
             echo ""
             echo "Examples:"
@@ -51,6 +59,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 -n 3                         # 3 drones, 10 minutes"
             echo "  $0 -n 5 -d 300                  # 5 drones, 5 minutes"
             echo "  $0 -n 10 -d 120 --headless      # 10 drones, 2 minutes, no GUI"
+            echo "  $0 -n 3 -s                      # 3 drones with spinning rotors"
             exit 0
             ;;
         *)
@@ -84,8 +93,8 @@ fi
 # Run test
 cd /home/sam/repos/IsaacLab
 echo "Starting test..."
-if [ -n "$NUM_DRONES" ] || [ -n "$DURATION" ] || [ -n "$HEADLESS" ]; then
-    echo "Parameters: $NUM_DRONES $DURATION $HEADLESS"
+if [ -n "$NUM_DRONES" ] || [ -n "$DURATION" ] || [ -n "$HEADLESS" ] || [ -n "$SPINNING" ]; then
+    echo "Parameters: $NUM_DRONES $DURATION $HEADLESS $SPINNING"
 fi
 echo ""
 echo "=========================================="
@@ -97,4 +106,4 @@ echo "  - Logs: /tmp/ardupilot_logs/vehicle_N/"
 echo "=========================================="
 echo ""
 
-./isaaclab.sh -p test_ardupilot_working.py $NUM_DRONES $DURATION $HEADLESS
+./isaaclab.sh -p test_ardupilot_working.py $NUM_DRONES $DURATION $HEADLESS $SPINNING
