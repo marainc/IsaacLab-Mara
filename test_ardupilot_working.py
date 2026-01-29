@@ -28,8 +28,18 @@ from isaaclab.utils.math import euler_xyz_from_quat
 
 def print_drone_stats(env, step, elapsed_time):
     """Print comprehensive stats for all drones."""
+    # Calculate physics rate metrics
+    if elapsed_time > 0 and step > 0:
+        actual_physics_rate = step / elapsed_time
+    else:
+        actual_physics_rate = 0.0
+
+    physics_dt = env.physics_dt if hasattr(env, 'physics_dt') else env.step_dt
+    target_physics_rate = 1.0 / physics_dt if physics_dt > 0 else 0.0
+
     print(f"\n{'='*80}")
     print(f"Step {step:5d} | Time: {elapsed_time:.1f}s / 600s")
+    print(f"Physics: dt={physics_dt*1000:.2f}ms | Target={target_physics_rate:.1f}Hz | Actual={actual_physics_rate:.1f}Hz")
     print('='*80)
 
     for env_id in range(env.num_envs):

@@ -39,7 +39,7 @@ kill_pattern "omniverse.*isaac" "Omniverse (Isaac-related)"
 
 # Kill Python processes running our test scripts
 echo "Checking for test script processes..."
-pids=$(ps aux | grep -E "test_ardupilot|isaaclab.sh" | grep -v grep | awk '{print $2}')
+pids=$(ps aux | grep -E "test_ardupilot|test_swarm_tracking|zero_agent|random_agent|isaaclab.sh.*scripts" | grep -v grep | awk '{print $2}')
 if [ -z "$pids" ]; then
     echo "  ✓ No test script processes found"
 else
@@ -62,7 +62,7 @@ echo "Verification"
 echo "=========================================="
 echo ""
 
-remaining=$(ps aux | grep -E "arducopter|sim_vehicle|mavproxy|isaac-sim|omni.isaac|test_ardupilot" | grep -v grep)
+remaining=$(ps aux | grep -E "arducopter|sim_vehicle|mavproxy|isaac-sim|omni.isaac|test_ardupilot|test_swarm_tracking|zero_agent|random_agent" | grep -v grep)
 if [ -z "$remaining" ]; then
     echo "✓ All processes terminated successfully"
 else
