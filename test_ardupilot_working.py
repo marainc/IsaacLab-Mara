@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """Test ArduPilot integration with comprehensive logging."""
 
+import argparse
 import sys
 import time
 import torch
 import traceback
 from isaaclab.app import AppLauncher
 
+# Parse arguments before launching app
+parser = argparse.ArgumentParser(description="Test ArduPilot integration with Isaac Lab")
+parser.add_argument("--num_drones", type=int, default=12, help="Number of drones to simulate (default: 3)")
+parser.add_argument("--headless", action="store_true", help="Run in headless mode (no GUI)")
+parser.add_argument("--duration", type=int, default=600, help="Test duration in seconds (default: 600)")
+args_cli = parser.parse_args()
+
 # Launch Isaac Sim
-app_launcher = AppLauncher(headless=False)
+app_launcher = AppLauncher(headless=args_cli.headless)
 simulation_app = app_launcher.app
 
 # Import after app launch
@@ -63,17 +71,17 @@ def print_drone_stats(env, step, elapsed_time):
 def main():
     # Configure environment
     cfg = SeekerSwarmEnvCfg()
-    cfg.scene.num_envs = 2
+    cfg.scene.num_envs = args_cli.num_drones
     cfg.use_ardupilot = True
     cfg.ardupilot_dir = "/home/sam/repos/falcon/submodules/ardupilot"
     cfg.ardupilot_autolaunch = True
 
     carb.log_info("\n" + "="*80)
-    carb.log_info("ArduPilot Integration Test - 10 Minute Run")
+    carb.log_info(f"ArduPilot Integration Test - {args_cli.duration}s Run")
     carb.log_info("="*80)
     carb.log_info(f"Drones: {cfg.scene.num_envs} | ArduPilot: {cfg.use_ardupilot}")
     carb.log_info(f"ArduPilot path: {cfg.ardupilot_dir}")
-    carb.log_info(f"Duration: 10 minutes (600 seconds)")
+    carb.log_info(f"Duration: {args_cli.duration} seconds ({args_cli.duration/60:.1f} minutes)")
     carb.log_info(f"Stats printed every ~2-3 seconds")
     carb.log_info("="*80 + "\n")
 
@@ -83,8 +91,8 @@ def main():
     carb.log_info("✓ Environment created\n")
 
     # Wait for ArduPilot SITL to initialize
-    carb.log_info("[2/4] Waiting for ArduPilot SITL to initialize (10 seconds)...")
-    for i in range(10, 0, -1):
+    carb.log_info("[2/4] Waiting for ArduPilot SITL to initialize (5 seconds)...")
+    for i in range(5, 0, -1):
         carb.log_info(f"  ...{i}s")
         time.sleep(1)
     carb.log_info("✓ ArduPilot ready\n")
@@ -94,11 +102,11 @@ def main():
     obs, _ = env.reset()
     carb.log_info(f"✓ Reset complete. Obs shape: {obs['policy'].shape}\n")
 
-    # Run simulation for 10 minutes
-    carb.log_info("[4/4] Running simulation for 10 minutes...")
+    # Run simulation
+    carb.log_info(f"[4/4] Running simulation for {args_cli.duration}s ({args_cli.duration/60:.1f} minutes)...")
     carb.log_info("      Press Ctrl+C to stop early\n")
 
-    duration = 600.0  # 10 minutes in seconds
+    duration = float(args_cli.duration)
     print_interval = 2.0  # Print every 2 seconds
 
     start_time = time.time()
