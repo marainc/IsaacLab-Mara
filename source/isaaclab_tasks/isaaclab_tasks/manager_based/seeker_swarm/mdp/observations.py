@@ -100,3 +100,51 @@ def generated_drone_commands(
     current_position_b_dir = current_position_b / (torch.norm(current_position_b, dim=-1, keepdim=True) + 1e-8)
     current_position_b_mag = torch.norm(current_position_b, dim=-1, keepdim=True)
     return torch.cat((current_position_b_dir, current_position_b_mag), dim=-1)
+
+
+def armed_drone_commands(
+    env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
+) -> torch.Tensor:
+    """Body-frame target direction, zeroed until drone is armed.
+
+    Wraps :func:`generated_drone_commands` and masks the output to zeros for
+    environments that have not yet been armed. This prevents the policy from
+    receiving goal information before the arming delay has elapsed.
+
+    If the environment does not have an ``is_armed`` attribute (i.e. it is not
+    a :class:`SeekerEvalEnv`), this function behaves identically to
+    :func:`generated_drone_commands`.
+
+    Parameters:
+        env: Manager-based RL environment.
+        command_name: Name of the command term to query.
+        asset_cfg: Scene entity config for the multirotor asset.
+
+    Returns:
+        torch.Tensor: Shape (num_envs, 4) with body-frame direction and distance,
+        zeroed for unarmed environments.
+    """
+    cmd = generated_drone_commands(env, command_name, asset_cfg)
+    if hasattr(env, "is_armed"):
+        cmd = cmd * env.is_armed.unsqueeze(-1).float()
+    return cmd
+
+
+def arm_countdown(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Normalized countdown to arm time.
+
+    Returns 1.0 when the drone has not yet been armed and 0.0 once armed.
+    This lets the policy learn to anticipate and prepare for arming.
+
+    If the environment does not have arming state, returns all zeros
+    (always armed).
+
+    Parameters:
+        env: Manager-based RL environment.
+
+    Returns:
+        torch.Tensor: Shape (num_envs, 1) with countdown values in [0, 1].
+    """
+    if not hasattr(env, "is_armed"):
+        return torch.zeros(env.num_envs, 1, device=env.device)
+    return (~env.is_armed).unsqueeze(-1).float()

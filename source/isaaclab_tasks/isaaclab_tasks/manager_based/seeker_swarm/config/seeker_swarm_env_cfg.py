@@ -22,7 +22,7 @@ from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 from isaaclab_contrib.assets import MultirotorCfg
 
-import isaaclab_tasks.manager_based.drone_arl.mdp as mdp
+import isaaclab_tasks.manager_based.seeker_swarm.mdp as mdp
 
 
 ##
@@ -190,6 +190,14 @@ class TerminationsCfg:
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     crash = DoneTerm(func=mdp.root_height_below_minimum, params={"minimum_height": -3.0})
+    out_of_bounds = DoneTerm(
+        func=mdp.out_of_bounds_box,
+        params={
+            "bounds_min": (-10.0, -10.0, 0.0),
+            "bounds_max": (10.0, 10.0, 10.0),
+            "asset_cfg": SceneEntityCfg("robot"),
+        },
+    )
 
 
 ##

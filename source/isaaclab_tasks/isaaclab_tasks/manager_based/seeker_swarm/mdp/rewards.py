@@ -435,3 +435,109 @@ def speed_toward_target_bonus(
     bonus = torch.clamp(velocity_toward_target - min_speed, min=0.0)
 
     return bonus
+
+
+##
+# Evaluation penalties
+##
+
+
+def no_takeoff_penalty(
+    env: ManagerBasedRLEnv,
+    height_threshold: float = 0.5,
+    grace_steps: int = 50,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize drones that haven't taken off after a grace period post-arming.
+
+    Returns -1.0 if the drone is armed, past the grace period, and still below
+    the height threshold. Returns 0.0 otherwise. If the environment does not
+    have arming state, the grace period is measured from episode start.
+
+    Args:
+        env: The manager-based RL environment instance.
+        height_threshold: Minimum height (relative to env origin) to count as taken off.
+        grace_steps: Number of env steps after arming before the penalty activates.
+        asset_cfg: SceneEntityCfg identifying the asset.
+
+    Returns:
+        A 1-D tensor of shape (num_envs,) with -1.0 for penalized envs, 0.0 otherwise.
+    """
+    asset: RigidObject = env.scene[asset_cfg.name]
+    height = (asset.data.root_pos_w - env.scene.env_origins)[:, 2]
+
+    below_threshold = height < height_threshold
+
+    if hasattr(env, "is_armed") and hasattr(env, "arm_step"):
+        is_armed = env.is_armed
+        steps_since_arm = env.episode_length_buf - env.arm_step
+        past_grace = steps_since_arm > grace_steps
+        penalty_mask = is_armed & past_grace & below_threshold
+    else:
+        past_grace = env.episode_length_buf > grace_steps
+        penalty_mask = past_grace & below_threshold
+
+    return -penalty_mask.float()
+
+
+def boundary_proximity_penalty(
+    env: ManagerBasedRLEnv,
+    bounds_min: tuple[float, float, float],
+    bounds_max: tuple[float, float, float],
+    margin: float = 2.0,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Soft penalty that increases as drone approaches boundary.
+
+    Returns 0 when more than ``margin`` from boundary, linearly increases to
+    1.0 at the boundary edge. The maximum penalty across all 6 faces is used.
+
+    Args:
+        env: The manager-based RL environment instance.
+        bounds_min: Minimum (x, y, z) bounds of the allowed volume.
+        bounds_max: Maximum (x, y, z) bounds of the allowed volume.
+        margin: Distance from boundary at which penalty begins.
+        asset_cfg: SceneEntityCfg identifying the asset.
+
+    Returns:
+        A 1-D tensor of shape (num_envs,) with penalty values in [0, 1].
+    """
+    asset: RigidObject = env.scene[asset_cfg.name]
+    pos = asset.data.root_pos_w - env.scene.env_origins
+
+    bounds_min_t = torch.tensor(bounds_min, device=env.device, dtype=pos.dtype)
+    bounds_max_t = torch.tensor(bounds_max, device=env.device, dtype=pos.dtype)
+
+    # distance to each face (positive = inside)
+    dist_to_min = pos - bounds_min_t  # (num_envs, 3)
+    dist_to_max = bounds_max_t - pos  # (num_envs, 3)
+
+    # combine all 6 face distances
+    all_dists = torch.cat([dist_to_min, dist_to_max], dim=1)  # (num_envs, 6)
+
+    # penalty: 0 when dist >= margin, linearly to 1.0 when dist <= 0
+    penalty_per_face = torch.clamp(1.0 - all_dists / margin, min=0.0, max=1.0)
+
+    # take max penalty across all faces
+    max_penalty, _ = penalty_per_face.max(dim=1)
+
+    return max_penalty
+
+
+def crash_or_oob_penalty(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalty on the step a drone crashes or leaves bounds.
+
+    Returns -1.0 for environments that are terminated (not timed out) on this
+    step. Uses the termination manager's ``terminated`` buffer.
+
+    Args:
+        env: The manager-based RL environment instance.
+        asset_cfg: SceneEntityCfg identifying the asset (unused, for API consistency).
+
+    Returns:
+        A 1-D tensor of shape (num_envs,) with -1.0 for terminated envs, 0.0 otherwise.
+    """
+    return -env.termination_manager.terminated.float()
